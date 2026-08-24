@@ -1,0 +1,34 @@
+|--- residual 9 kHz vs. baseline silnika <= -8.43
+|   |--- podobieństwo do wzorca: pompa <= 0.21
+|   |   |--- class: zakoksowany
+|   |--- podobieństwo do wzorca: pompa >  0.21
+|   |   |--- podobieństwo do wzorca: zakoksowany <= -0.29
+|   |   |   |--- class: lejacy
+|   |   |--- podobieństwo do wzorca: zakoksowany >  -0.29
+|   |   |   |--- podobieństwo do wzorca: pompa <= 0.93
+|   |   |   |   |--- chropowatość widma residualnego <= 75.92
+|   |   |   |   |   |--- residual 4 kHz vs. baseline silnika <= -4.99
+|   |   |   |   |   |   |--- class: ok
+|   |   |   |   |   |--- residual 4 kHz vs. baseline silnika >  -4.99
+|   |   |   |   |   |   |--- class: iglica
+|   |   |   |   |--- chropowatość widma residualnego >  75.92
+|   |   |   |   |   |--- class: unknown
+|   |   |   |--- podobieństwo do wzorca: pompa >  0.93
+|   |   |   |   |--- class: pompa
+|--- residual 9 kHz vs. baseline silnika >  -8.43
+|   |--- residual 13 kHz vs. baseline silnika <= -7.25
+|   |   |--- residual 0 kHz vs. baseline silnika <= -2.46
+|   |   |   |--- residual 9 kHz vs. baseline silnika <= -4.78
+|   |   |   |   |--- class: ok
+|   |   |   |--- residual 9 kHz vs. baseline silnika >  -4.78
+|   |   |   |   |--- class: unknown
+|   |   |--- residual 0 kHz vs. baseline silnika >  -2.46
+|   |   |   |--- class: pompa
+|   |--- residual 13 kHz vs. baseline silnika >  -7.25
+|   |   |--- chropowatość widma residualnego <= 58.14
+|   |   |   |--- residual 17 kHz vs. baseline silnika <= 8.58
+|   |   |   |   |--- class: ok
+|   |   |   |--- residual 17 kHz vs. baseline silnika >  8.58
+|   |   |   |   |--- class: ok
+|   |   |--- chropowatość widma residualnego >  58.14
+|   |   |   |--- class: unknown
