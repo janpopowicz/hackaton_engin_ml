@@ -133,7 +133,11 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Silnik")
-        source = st.radio("Źródło", ["val.csv (etykiety)", "test.csv", "wgraj CSV"], index=1)
+        source = st.radio(
+            "Źródło",
+            ["val.csv (trening)", "final_valid.csv (holdout)", "test.csv", "wgraj CSV"],
+            index=1,
+        )
         uploaded = None
         if source.startswith("wgraj"):
             uploaded = st.file_uploader("CSV z kolumnami mV_0…mV_20", type="csv")
@@ -142,6 +146,8 @@ def main() -> None:
             df = pd.read_csv(uploaded)
         elif source.startswith("val"):
             df = load_csv("val.csv")
+        elif source.startswith("final_valid"):
+            df = load_csv("final_valid.csv")
         else:
             df = load_csv("test.csv")
 

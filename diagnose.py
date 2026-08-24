@@ -10,18 +10,20 @@ Approach
    (coking notch, leaking broadband drop, pump 3 kHz dip, needle mid-band).
 5. Severity from signature magnitude (not a second black-box model).
 
-Leave-one-engine-out on val: macro-F1(label) = 1.00, severity acc ≈ 0.965
-(Raw_Score ≈ 0.991). Fit on all val recovers severity 1.00 as well.
+Train on labeled `val.csv`. Honest score is `final_valid.csv` (held-out
+engines that never enter fit). `test.csv` is the unlabeled submit set.
+Optional `--loeo` still runs leave-one-engine-out on val.
 """
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, f1_score
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 
 BASE_DIR = Path(__file__).resolve().parent
 FREQ_COLS = [f"mV_{i}" for i in range(21)]
@@ -31,6 +33,17 @@ SEV_ORDER = ["male", "srednie", "duze"]
 
 # Residual L2 above this, with an "ok" RF vote, is treated as unknown.
 OK_L2_MAX = 32.0
+
+
+LABELED_COLS = ["engine_id", "cylinder", "n_cylinders", *FREQ_COLS, "label", "severity"]
+
+
+def read_labeled_csv(path: Path) -> pd.DataFrame:
+    """Load val / final_valid even if the file was saved without a header."""
+    header = pd.read_csv(path, nrows=0)
+    if "engine_id" in header.columns:
+        return pd.read_csv(path)
+    return pd.read_csv(path, header=None, names=LABELED_COLS)
 
 
 def interpolate_spectrum(df: pd.DataFrame) -> pd.DataFrame:
@@ -323,34 +336,79 @@ def leave_one_engine_out(val: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
     return pred_y, pred_s
 
 
-def main() -> None:
-    val = pd.read_csv(BASE_DIR / "val.csv")
-    test = pd.read_csv(BASE_DIR / "test.csv")
-
-    print("Leave-one-engine-out on val.csv ...")
-    pred_y, pred_s = leave_one_engine_out(val)
-    y = val["label"].to_numpy()
-    s = val["severity"].to_numpy()
-    raw, macro, sev_acc = hackathon_score(y, pred_y, s, pred_s)
-    print(classification_report(y, pred_y, labels=LABELS, digits=3))
+def print_eval(name: str, y_true, y_pred, s_true, s_pred) -> tuple[float, float, float]:
+    raw, macro, sev_acc = hackathon_score(y_true, y_pred, s_true, s_pred)
+    print(f"\n=== {name} ===")
+    print(classification_report(y_true, y_pred, labels=LABELS, digits=3, zero_division=0))
+    print("macierz pomyłek  wiersz=true  kolumna=pred")
+    print(
+        pd.DataFrame(
+            confusion_matrix(y_true, y_pred, labels=LABELS),
+            index=LABELS,
+            columns=LABELS,
+        ).to_string()
+    )
     print(f"macro-F1(label)={macro:.4f}  severity_acc={sev_acc:.4f}  Raw_Score={raw:.4f}")
+    return raw, macro, sev_acc
 
-    print("\nFitting on full val, predicting test ...")
-    model = Diagnoser().fit(val)
-    sub = model.predict(test)
-    out_path = BASE_DIR / "predictions.csv"
-    sub.to_csv(out_path, index=False)
-    print(f"Wrote {out_path}  rows={len(sub)}")
-    print(sub["label"].value_counts().to_string())
-    print(pd.crosstab(sub["label"], sub["severity"]).to_string())
 
-    test_keys = test[["engine_id", "cylinder"]]
+def _assert_submit(sub: pd.DataFrame, test: pd.DataFrame) -> None:
     assert len(sub) == len(test)
     assert (sub["engine_id"].to_numpy() == test["engine_id"].to_numpy()).all()
     assert (sub["cylinder"].to_numpy() == test["cylinder"].to_numpy()).all()
     bad_ok = sub["label"].isin(["ok", "unknown"]) & (sub["severity"] != "nie_dotyczy")
     bad_fault = sub["label"].isin(FAULTS) & ~sub["severity"].isin(SEV_ORDER)
     assert not bad_ok.any() and not bad_fault.any()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--loeo",
+        action="store_true",
+        help="dodatkowo leave-one-engine-out na val.csv (wolniejsze)",
+    )
+    args = parser.parse_args()
+
+    val = read_labeled_csv(BASE_DIR / "val.csv")
+    holdout = read_labeled_csv(BASE_DIR / "final_valid.csv")
+    test = pd.read_csv(BASE_DIR / "test.csv")
+
+    print(
+        f"train val.csv: {val['engine_id'].nunique()} silników, {len(val)} cylindrów"
+    )
+    print(
+        f"test  final_valid.csv: {holdout['engine_id'].nunique()} silników, {len(holdout)} cylindrów"
+    )
+    overlap = set(val["engine_id"]) & set(holdout["engine_id"])
+    assert not overlap, f"wyciek silników val ∩ final_valid: {sorted(overlap)}"
+
+    if args.loeo:
+        print("\nLeave-one-engine-out on val.csv ...")
+        pred_y, pred_s = leave_one_engine_out(val)
+        print_eval("LOEO val.csv", val["label"].to_numpy(), pred_y, val["severity"].to_numpy(), pred_s)
+
+    print("\nFitting on val.csv ...")
+    model = Diagnoser().fit(val)
+
+    print("Evaluating on final_valid.csv (held-out engines, never used in fit) ...")
+    sub_ho = model.predict(holdout)
+    print_eval(
+        "final_valid.csv",
+        holdout["label"].to_numpy(),
+        sub_ho["label"].to_numpy(),
+        holdout["severity"].to_numpy(),
+        sub_ho["severity"].to_numpy(),
+    )
+
+    print("\nPredicting unlabeled test.csv ...")
+    sub = model.predict(test)
+    out_path = BASE_DIR / "predictions.csv"
+    sub.to_csv(out_path, index=False)
+    print(f"Wrote {out_path}  rows={len(sub)}")
+    print(sub["label"].value_counts().to_string())
+    print(pd.crosstab(sub["label"], sub["severity"]).to_string())
+    _assert_submit(sub, test)
     print("Submit format OK.")
 
 

@@ -1,12 +1,13 @@
 """Second solution: TabPFN teacher distilled into a decision tree.
 
-TabPFN learns the diagnostic mapping from the small labeled `val.csv`.
+TabPFN learns the diagnostic mapping from the labeled `val.csv`.
 It then labels the unlabeled workshop archive (`train.csv`). A shallow
 sklearn tree is distilled on named acoustic features so that:
 
 * inference is CPU-only and millisecond-fast (hackathon CPU criterion),
 * each verdict is an if/then path a mechanic can read (explainability).
 
+Honest score is `final_valid.csv` (held-out engines, never used in fit).
 Severity stays physics-based (signature magnitude), not a second model.
 
 Colab T4:  Runtime → GPU, then `python tabpfn_diagnose.py --cv`
@@ -90,6 +91,15 @@ _SEV_DEFAULTS = {
 CONF_MIN = 0.70
 TREE_DEPTH = 6
 OK_L2_MAX = 32.0
+LABELED_COLS = ["engine_id", "cylinder", "n_cylinders", *FREQ_COLS, "label", "severity"]
+
+
+def read_labeled_csv(path: Path) -> pd.DataFrame:
+    """Load val / final_valid even if the file was saved without a header."""
+    header = pd.read_csv(path, nrows=0)
+    if "engine_id" in header.columns:
+        return pd.read_csv(path)
+    return pd.read_csv(path, header=None, names=LABELED_COLS)
 
 
 def interpolate_spectrum(df: pd.DataFrame) -> pd.DataFrame:
@@ -245,6 +255,14 @@ def hackathon_score(y_true, y_pred, s_true, s_pred) -> tuple[float, float, float
     return 0.75 * macro + 0.25 * sev_acc, float(macro), float(sev_acc)
 
 
+def print_eval(name: str, y_true, y_pred, s_true, s_pred) -> tuple[float, float, float]:
+    raw, macro, sev_acc = hackathon_score(y_true, y_pred, s_true, s_pred)
+    print(f"\n=== {name} ===")
+    print(classification_report(y_true, y_pred, labels=LABELS, digits=3, zero_division=0))
+    print(f"macro-F1={macro:.4f}  severity_acc={sev_acc:.4f}  Raw_Score={raw:.4f}")
+    return raw, macro, sev_acc
+
+
 def pick_device() -> str:
     return "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -348,7 +366,7 @@ class TabPFNTreeDiagnoser:
         self.teacher_ = teacher
         self.teacher_classes_ = teacher.classes_
         y_val_hat = teacher.predict(X_val.to_numpy(float))
-        print("TabPFN in-sample (sanity check, not a held-out score):")
+        print("TabPFN in-sample on val.csv (sanity, not the holdout score):")
         print(classification_report(y_val, y_val_hat, labels=LABELS, digits=3, zero_division=0))
 
         X_parts = [X_val.to_numpy(float)]
@@ -397,10 +415,10 @@ class TabPFNTreeDiagnoser:
         s_tree_val = apply_severity(y_tree_val, mag, self.sev_thr)
         raw, macro, sev_acc = hackathon_score(y_val, y_tree_val, s_val, s_tree_val)
         fidelity = float((y_tree_val == y_val_hat).mean())
-        print("\nDistilled tree on val (true labels):")
+        print("\nDistilled tree on val.csv (resubstitution, not holdout):")
         print(classification_report(y_val, y_tree_val, labels=LABELS, digits=3, zero_division=0))
         print(
-            f"tree vs labels  macro-F1={macro:.4f}  severity_acc={sev_acc:.4f}  "
+            f"tree vs val labels  macro-F1={macro:.4f}  severity_acc={sev_acc:.4f}  "
             f"Raw_Score={raw:.4f}  fidelity vs TabPFN={fidelity:.3f}"
         )
         self.meta.update(
@@ -587,9 +605,19 @@ def main() -> None:
     parser.add_argument("--device", default=None, choices=["cpu", "cuda"])
     args = parser.parse_args()
 
-    val = pd.read_csv(BASE_DIR / "val.csv")
+    val = read_labeled_csv(BASE_DIR / "val.csv")
+    holdout = read_labeled_csv(BASE_DIR / "final_valid.csv")
     test = pd.read_csv(BASE_DIR / "test.csv")
     train = None if args.no_train else pd.read_csv(BASE_DIR / "train.csv")
+
+    overlap = set(val["engine_id"]) & set(holdout["engine_id"])
+    assert not overlap, f"wyciek silników val ∩ final_valid: {sorted(overlap)}"
+    print(
+        f"train val.csv: {val['engine_id'].nunique()} silników, {len(val)} cylindrów"
+    )
+    print(
+        f"test  final_valid.csv: {holdout['engine_id'].nunique()} silników, {len(holdout)} cylindrów"
+    )
 
     model = TabPFNTreeDiagnoser().fit(
         val,
@@ -600,8 +628,25 @@ def main() -> None:
     )
     model.save()
 
-    sub_tree = model.predict(test)
     assert model.teacher_ is not None
+    sub_ho_tree = model.predict(holdout)
+    sub_ho_tabpfn = model.predict_teacher(holdout, model.teacher_)
+    y_ho = holdout["label"].to_numpy()
+    s_ho = holdout["severity"].to_numpy()
+    print_eval("final_valid.csv — TabPFN teacher", y_ho, sub_ho_tabpfn["label"].to_numpy(), s_ho, sub_ho_tabpfn["severity"].to_numpy())
+    print_eval("final_valid.csv — distilled tree", y_ho, sub_ho_tree["label"].to_numpy(), s_ho, sub_ho_tree["severity"].to_numpy())
+    agree_ho = float((sub_ho_tree["label"] == sub_ho_tabpfn["label"]).mean())
+    print(f"Tree vs TabPFN agreement on final_valid: {agree_ho:.3f}")
+    model.meta["final_valid"] = {
+        "n_engines": int(holdout["engine_id"].nunique()),
+        "n_rows": int(len(holdout)),
+        "tree_raw": float(hackathon_score(y_ho, sub_ho_tree["label"], s_ho, sub_ho_tree["severity"])[0]),
+        "teacher_raw": float(hackathon_score(y_ho, sub_ho_tabpfn["label"], s_ho, sub_ho_tabpfn["severity"])[0]),
+        "agreement": agree_ho,
+    }
+    model.save()
+
+    sub_tree = model.predict(test)
     sub_tabpfn = model.predict_teacher(test, model.teacher_)
     _assert_submit(sub_tree, test)
     _assert_submit(sub_tabpfn, test)
@@ -612,7 +657,7 @@ def main() -> None:
     sub_tabpfn.to_csv(tabpfn_csv, index=False)
     agree = float((sub_tree["label"] == sub_tabpfn["label"]).mean())
     print(f"\nWrote {tabpfn_csv.name} and {tree_csv.name}")
-    print(f"Tree vs TabPFN agreement on test labels: {agree:.3f}")
+    print(f"Tree vs TabPFN agreement on unlabeled test: {agree:.3f}")
     print("TabPFN label counts:\n", sub_tabpfn["label"].value_counts().to_string())
     print("Tree label counts:\n", sub_tree["label"].value_counts().to_string())
     print("Submit format OK.")
