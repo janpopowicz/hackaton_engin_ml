@@ -72,9 +72,9 @@ Punkty przyznawane są w skali od progu 0.80 do 1.00:
 * Dla `Raw_Score >= 0.80`: `Punkty = 40 * (Raw_Score - 0.80) / 0.20` (maksymalnie 40 pkt)
 
 ### 2. Część subiektywna (60 punktów) – Aplikacja, produkt i prezentacja
-* Użyteczność i ergonomia interfejsu (15 pkt): wygoda obsługi oraz natychmiastowa czytelność diagnozy dla inżyniera i mechanika.
-* Wyjaśnialność decyzji (15 pkt): przejrzyste uzasadnienie werdyktu (np. wskazanie anomalnego pasma, porównanie z pozostałymi cylindrami jednostki).
-* Innowacyjność i unikalność produktu (10 pkt): kreatywność w podejściu do problemu, ciekawe funkcjonalności, unikalne idee ułatwiające pracę warsztatu.
+* Innowacyjność i unikalność produktu (20 pkt): kreatywność w podejściu do problemu, ciekawe funkcjonalności, unikalne idee ułatwiające pracę warsztatu.
+* Użyteczność i ergonomia interfejsu (10 pkt): wygoda obsługi oraz natychmiastowa czytelność diagnozy dla inżyniera i mechanika.
+* Wyjaśnialność decyzji (10 pkt): przejrzyste uzasadnienie werdyktu (np. wskazanie anomalnego pasma, porównanie z pozostałymi cylindrami jednostki).
 * Kultura pracy i wydajność na CPU (10 pkt): stabilne i szybkie działanie bez konieczności używania GPU.
 * Prezentacja i odpowiedzi na pytania jury (10 pkt).
 
