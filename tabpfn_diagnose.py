@@ -327,6 +327,11 @@ class TabPFNTreeDiagnoser:
         self.feature_names = list(FEATURE_NAMES)
         self.teacher_classes_: np.ndarray | None = None
         self.teacher_ = None
+        self.X_val_: pd.DataFrame | None = None
+        self.y_val_: np.ndarray | None = None
+        self.s_val_: np.ndarray | None = None
+        self.sig_val_: dict[str, np.ndarray] | None = None
+        self.y_val_hat_: np.ndarray | None = None
         self.meta: dict = {}
 
     def _xy_from_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, np.ndarray]]:
@@ -342,6 +347,7 @@ class TabPFNTreeDiagnoser:
         device: str | None = None,
         n_estimators: int | None = None,
         do_cv: bool = False,
+        conf_min: float = CONF_MIN,
     ) -> TabPFNTreeDiagnoser:
         device = device or pick_device()
         n_estimators = n_estimators or (8 if device == "cuda" else 4)
@@ -369,37 +375,71 @@ class TabPFNTreeDiagnoser:
         print("TabPFN in-sample on val.csv (sanity, not the holdout score):")
         print(classification_report(y_val, y_val_hat, labels=LABELS, digits=3, zero_division=0))
 
+        self.X_val_ = X_val
+        self.y_val_ = y_val
+        self.s_val_ = s_val
+        self.sig_val_ = sig_val
+        self.y_val_hat_ = y_val_hat
+        self.meta.update({"device": device, "n_estimators": n_estimators})
+        return self.distill(train, conf_min=conf_min)
+
+    def distill(
+        self,
+        train: pd.DataFrame | None = None,
+        *,
+        conf_min: float = CONF_MIN,
+    ) -> TabPFNTreeDiagnoser:
+        """Rebuild the student from val labels [+ TabPFN pseudo-labels on train].
+
+        TabPFN is not refit. Call after ``fit`` (or after a previous ``distill``)
+        to compare val-only vs val ∪ train without paying for the teacher twice.
+        """
+        assert self.teacher_ is not None
+        assert self.templates is not None
+        assert self.X_val_ is not None and self.y_val_ is not None
+        assert self.sig_val_ is not None and self.s_val_ is not None
+        assert self.y_val_hat_ is not None and self.sev_thr is not None
+
+        X_val = self.X_val_
+        y_val = self.y_val_
         X_parts = [X_val.to_numpy(float)]
         y_parts = [y_val]
         w_parts = [np.full(len(y_val), 2.0)]
 
         n_pseudo = 0
+        n_student = len(y_val)
         if train is not None and len(train):
             X_tr, _res_tr, _sig_tr, _ = prepare_xy(train, templates=self.templates)
-            proba = teacher.predict_proba(X_tr.to_numpy(float))
-            pred_tr = teacher.classes_[proba.argmax(axis=1)]
+            proba = self.teacher_.predict_proba(X_tr.to_numpy(float))
+            pred_tr = self.teacher_.classes_[proba.argmax(axis=1)]
             conf = proba.max(axis=1)
-            keep = conf >= CONF_MIN
+            keep = conf >= conf_min
             n_pseudo = int(keep.sum())
+            n_student = len(y_val) + n_pseudo
             print(
                 f"Pseudo-labels from train.csv: {n_pseudo}/{len(train)} "
-                f"with max P ≥ {CONF_MIN:.2f}"
+                f"with max P ≥ {conf_min:.2f}"
             )
             if n_pseudo:
+                print(pd.Series(pred_tr[keep]).value_counts().to_string())
                 X_parts.append(X_tr.to_numpy(float)[keep])
                 y_parts.append(pred_tr[keep])
                 w_parts.append(conf[keep])
             self.meta["train_pseudo"] = {
                 "kept": n_pseudo,
                 "total": int(len(train)),
+                "conf_min": conf_min,
                 "label_counts": (
                     pd.Series(pred_tr[keep]).value_counts().to_dict() if n_pseudo else {}
                 ),
             }
+        else:
+            self.meta.pop("train_pseudo", None)
 
         X_s = np.vstack(X_parts)
         y_s = np.concatenate(y_parts)
         w_s = np.concatenate(w_parts)
+        print(f"Student tree distilled on {n_student} rows (val={len(y_val)}, pseudo={n_pseudo})")
 
         self.tree = DecisionTreeClassifier(
             max_depth=TREE_DEPTH,
@@ -409,12 +449,12 @@ class TabPFNTreeDiagnoser:
         self.tree.fit(X_s, y_s, sample_weight=w_s)
 
         y_tree_val = guard_unknown(
-            self.tree.predict(X_val.to_numpy(float)), sig_val["l2"]
+            self.tree.predict(X_val.to_numpy(float)), self.sig_val_["l2"]
         )
-        mag = severity_magnitude(sig_val)
+        mag = severity_magnitude(self.sig_val_)
         s_tree_val = apply_severity(y_tree_val, mag, self.sev_thr)
-        raw, macro, sev_acc = hackathon_score(y_val, y_tree_val, s_val, s_tree_val)
-        fidelity = float((y_tree_val == y_val_hat).mean())
+        raw, macro, sev_acc = hackathon_score(y_val, y_tree_val, self.s_val_, s_tree_val)
+        fidelity = float((y_tree_val == self.y_val_hat_).mean())
         print("\nDistilled tree on val.csv (resubstitution, not holdout):")
         print(classification_report(y_val, y_tree_val, labels=LABELS, digits=3, zero_division=0))
         print(
@@ -423,10 +463,10 @@ class TabPFNTreeDiagnoser:
         )
         self.meta.update(
             {
-                "device": device,
-                "n_estimators": n_estimators,
                 "tree_depth": TREE_DEPTH,
                 "n_pseudo": n_pseudo,
+                "n_student": n_student,
+                "conf_min": conf_min,
                 "val_raw_score": raw,
                 "val_macro_f1": macro,
                 "val_sev_acc": sev_acc,

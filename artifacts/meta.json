@@ -1,7 +1,18 @@
 {
+  "device": "cpu",
+  "n_estimators": 4,
+  "tree_depth": 6,
+  "n_pseudo": 2359,
+  "n_student": 2759,
+  "conf_min": 0.7,
+  "val_raw_score": 0.9849498327759197,
+  "val_macro_f1": 0.979933110367893,
+  "val_sev_acc": 1.0,
+  "fidelity_vs_tabpfn": 0.9975,
   "train_pseudo": {
     "kept": 2359,
     "total": 2400,
+    "conf_min": 0.7,
     "label_counts": {
       "ok": 2035,
       "zakoksowany": 73,
@@ -10,13 +21,5 @@
       "lejacy": 62,
       "pompa": 60
     }
-  },
-  "device": "cpu",
-  "n_estimators": 4,
-  "tree_depth": 6,
-  "n_pseudo": 2359,
-  "val_raw_score": 0.9849498327759197,
-  "val_macro_f1": 0.979933110367893,
-  "val_sev_acc": 1.0,
-  "fidelity_vs_tabpfn": 0.9975
+  }
 }
