@@ -60,21 +60,22 @@ Podczas finału odbędzie się krótka prezentacja i demo na żywo (3–5 minut)
 
 ## Kryteria oceny (100 punktów)
 
-Ocena projektu dzieli się na dwie równe części:
+Ocena projektu dzieli się na część obiektywną (40 punktów) oraz część subiektywną (60 punktów):
 
-### 1. Część obiektywna (50 punktów) – Skuteczność na zbiorze testowym
+### 1. Część obiektywna (40 punktów) – Skuteczność na zbiorze testowym
 Wynik wyliczany na ukrytych etykietach zbioru `test.csv` według metryki:
 
 `Raw_Score = 0.75 * Macro_F1(label) + 0.25 * Accuracy(severity dla uszkodzonych)`
 
 Punkty przyznawane są w skali od progu 0.80 do 1.00:
 * Dla `Raw_Score < 0.80`: **0 pkt**
-* Dla `Raw_Score >= 0.80`: `Punkty = 50 * (Raw_Score - 0.80) / 0.20` (maksymalnie 50 pkt)
+* Dla `Raw_Score >= 0.80`: `Punkty = 40 * (Raw_Score - 0.80) / 0.20` (maksymalnie 40 pkt)
 
-### 2. Część subiektywna (50 punktów) – Aplikacja, UX i prezentacja
-* Użyteczność i ergonomia interfejsu (15 pkt): wygoda obsługi oraz czytelność diagnozy dla mechanika.
-* Wyjaśnialność decyzji (15 pkt): przejrzyste uzasadnienie werdyktu (np. wskazanie anomalnego pasma, porównanie z pozostałymi cylindrami).
-* Kultura pracy i wydajność na CPU (10 pkt): sprawne działanie bez konieczności używania GPU.
+### 2. Część subiektywna (60 punktów) – Aplikacja, produkt i prezentacja
+* Użyteczność i ergonomia interfejsu (15 pkt): wygoda obsługi oraz natychmiastowa czytelność diagnozy dla inżyniera i mechanika.
+* Wyjaśnialność decyzji (15 pkt): przejrzyste uzasadnienie werdyktu (np. wskazanie anomalnego pasma, porównanie z pozostałymi cylindrami jednostki).
+* Innowacyjność i unikalność produktu (10 pkt): kreatywność w podejściu do problemu, ciekawe funkcjonalności, unikalne idee ułatwiające pracę warsztatu.
+* Kultura pracy i wydajność na CPU (10 pkt): stabilne i szybkie działanie bez konieczności używania GPU.
 * Prezentacja i odpowiedzi na pytania jury (10 pkt).
 
 ## Nagrody i Jury
