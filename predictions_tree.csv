@@ -64,7 +64,7 @@ test_0006,2,ok,nie_dotyczy
 test_0006,3,ok,nie_dotyczy
 test_0006,4,unknown,nie_dotyczy
 test_0006,5,ok,nie_dotyczy
-test_0006,6,iglica,male
+test_0006,6,ok,nie_dotyczy
 test_0006,7,ok,nie_dotyczy
 test_0006,8,ok,nie_dotyczy
 test_0006,9,ok,nie_dotyczy
@@ -86,7 +86,7 @@ test_0007,8,ok,nie_dotyczy
 test_0007,9,iglica,duze
 test_0007,10,unknown,nie_dotyczy
 test_0007,11,ok,nie_dotyczy
-test_0007,12,iglica,male
+test_0007,12,ok,nie_dotyczy
 test_0007,13,ok,nie_dotyczy
 test_0007,14,unknown,nie_dotyczy
 test_0007,15,ok,nie_dotyczy
@@ -233,7 +233,7 @@ test_0018,7,ok,nie_dotyczy
 test_0018,8,ok,nie_dotyczy
 test_0018,9,ok,nie_dotyczy
 test_0018,10,ok,nie_dotyczy
-test_0018,11,unknown,nie_dotyczy
+test_0018,11,iglica,duze
 test_0018,12,ok,nie_dotyczy
 test_0018,13,ok,nie_dotyczy
 test_0018,14,ok,nie_dotyczy
@@ -356,7 +356,7 @@ test_0029,6,ok,nie_dotyczy
 test_0029,7,ok,nie_dotyczy
 test_0029,8,ok,nie_dotyczy
 test_0029,9,ok,nie_dotyczy
-test_0029,10,iglica,srednie
+test_0029,10,unknown,nie_dotyczy
 test_0029,11,unknown,nie_dotyczy
 test_0029,12,ok,nie_dotyczy
 test_0030,1,ok,nie_dotyczy
@@ -434,7 +434,7 @@ test_0036,4,ok,nie_dotyczy
 test_0036,5,ok,nie_dotyczy
 test_0036,6,ok,nie_dotyczy
 test_0036,7,ok,nie_dotyczy
-test_0036,8,iglica,srednie
+test_0036,8,pompa,male
 test_0036,9,ok,nie_dotyczy
 test_0036,10,ok,nie_dotyczy
 test_0036,11,ok,nie_dotyczy
@@ -565,7 +565,7 @@ test_0047,7,zakoksowany,male
 test_0047,8,zakoksowany,srednie
 test_0047,9,ok,nie_dotyczy
 test_0047,10,ok,nie_dotyczy
-test_0047,11,unknown,nie_dotyczy
+test_0047,11,iglica,duze
 test_0047,12,ok,nie_dotyczy
 test_0047,13,ok,nie_dotyczy
 test_0047,14,unknown,nie_dotyczy
