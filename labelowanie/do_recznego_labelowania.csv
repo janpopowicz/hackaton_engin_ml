@@ -1,0 +1,12 @@
+engine_id,cylinder,n_cylinders,typ_rozjazdu,tabpfn_label,tabpfn_severity,widmo_label,widmo_severity,glrt_istotnosc_sigma,glrt_chi_dopasowania,glrt_amplituda_mV,glrt_szablon,human_label,human_severity,notes,wykres
+test_0007,14,16,klasa,zakoksowany,male,unknown,nie_dotyczy,168.5,3.29,0.0,unknown,unknown,nie_dotyczy,,wykresy/klasa_01_test_0007_cyl14.png
+test_0033,14,16,klasa,unknown,nie_dotyczy,ok,nie_dotyczy,5.2,1.01,0.0,unknown,ok,nie_dotyczy,,wykresy/klasa_02_test_0033_cyl14.png
+test_0034,4,8,klasa,iglica,srednie,unknown,nie_dotyczy,103.7,2.43,0.0,unknown,unknown,nie_dotyczy,,wykresy/klasa_03_test_0034_cyl4.png
+test_0040,6,12,klasa,lejacy,male,unknown,nie_dotyczy,80.4,1.61,0.0,unknown,lejacy,male,,wykresy/klasa_04_test_0040_cyl6.png
+test_0004,5,8,nasilenie,zakoksowany,srednie,zakoksowany,male,89.9,0.77,31.82,zakoksowany,zakoksowany,srednie,,wykresy/nasilenie_01_test_0004_cyl5.png
+test_0012,8,16,nasilenie,zakoksowany,srednie,zakoksowany,male,68.6,1.08,26.54,zakoksowany,zakoksowany,male,,wykresy/nasilenie_02_test_0012_cyl8.png
+test_0012,12,16,nasilenie,zakoksowany,srednie,zakoksowany,male,124.8,1.38,33.92,zakoksowany,zakoksowany,srednie,,wykresy/nasilenie_03_test_0012_cyl12.png
+test_0022,7,8,nasilenie,pompa,srednie,pompa,male,59.1,0.59,27.05,pompa,pompa,male,,wykresy/nasilenie_04_test_0022_cyl7.png
+test_0033,4,16,nasilenie,zakoksowany,srednie,zakoksowany,duze,265.6,1.66,53.73,zakoksowany,zakoksowany,duze,,wykresy/nasilenie_05_test_0033_cyl4.png
+test_0043,10,12,nasilenie,zakoksowany,srednie,zakoksowany,male,105.5,0.9,33.44,zakoksowany,zakoksowany,male,,wykresy/nasilenie_06_test_0043_cyl10.png
+test_0045,2,16,nasilenie,zakoksowany,srednie,zakoksowany,male,94.5,0.6,32.1,zakoksowany,zakoksowany,male,,wykresy/nasilenie_07_test_0045_cyl2.png

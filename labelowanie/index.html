@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Do ręcznego labelowania — TabPFN vs widmo</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px auto; max-width: 1100px; color: #222; }
+  h1 { margin-bottom: 8px; }
+  .stats { background: #f4f5f7; padding: 12px 16px; border-radius: 8px; }
+  article { margin: 36px 0 56px; }
+  img { width: 100%; border: 1px solid #ddd; }
+  .kind { font-size: 0.7em; font-weight: 600; color: #c0392b; margin-left: 8px; }
+  .meta { color: #555; font-size: 0.95em; }
+  nav a { margin-right: 12px; }
+</style>
+</head>
+<body>
+<h1>Rozjazdy TabPFN vs model widmowy</h1>
+<div class="stats">
+  <p>Zbiór: <code>test.csv</code>, 600 cylindrów.</p>
+  <p><b>Klasa zgadza się w 99.33%</b> (596/600).</p>
+  <p>Klasa + nasilenie: 98.17% (589/600).</p>
+  <p>Do ręcznego labelowania: 4 rozjazdów klasy + 7 rozjazdów nasilenia.</p>
+  <p>CSV: <code>do_recznego_labelowania.csv</code> — kolumny <code>human_label</code>, <code>human_severity</code>, <code>notes</code>.</p>
+</div>
+<nav>
+  <p>Skok do przypadku:
+  <a href="#c1">1</a><a href="#c2">2</a><a href="#c3">3</a><a href="#c4">4</a><a href="#c5">5</a><a href="#c6">6</a><a href="#c7">7</a><a href="#c8">8</a><a href="#c9">9</a><a href="#c10">10</a><a href="#c11">11</a>
+  </p>
+</nav>
+
+            <article id="c1">
+              <h2>1. test_0007 cylinder 14
+                <span class="kind">rozjazd klasy</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> zakoksowany / małe
+                &nbsp;→&nbsp;
+                <b>widmo:</b> unknown
+              </p>
+              <p class='meta'>GLRT: istotność 168.5σ · χ=3.29 · amplituda 0.0 mV · szablon unknown</p>
+              <img src="wykresy/klasa_01_test_0007_cyl14.png" alt="test_0007 cyl 14">
+            </article>
+            
+            <article id="c2">
+              <h2>2. test_0033 cylinder 14
+                <span class="kind">rozjazd klasy</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> unknown
+                &nbsp;→&nbsp;
+                <b>widmo:</b> ok
+              </p>
+              <p class='meta'>GLRT: istotność 5.2σ · χ=1.01 · amplituda 0.0 mV · szablon unknown</p>
+              <img src="wykresy/klasa_02_test_0033_cyl14.png" alt="test_0033 cyl 14">
+            </article>
+            
+            <article id="c3">
+              <h2>3. test_0034 cylinder 4
+                <span class="kind">rozjazd klasy</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> iglica / średnie
+                &nbsp;→&nbsp;
+                <b>widmo:</b> unknown
+              </p>
+              <p class='meta'>GLRT: istotność 103.7σ · χ=2.43 · amplituda 0.0 mV · szablon unknown</p>
+              <img src="wykresy/klasa_03_test_0034_cyl4.png" alt="test_0034 cyl 4">
+            </article>
+            
+            <article id="c4">
+              <h2>4. test_0040 cylinder 6
+                <span class="kind">rozjazd klasy</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> lejacy / małe
+                &nbsp;→&nbsp;
+                <b>widmo:</b> unknown
+              </p>
+              <p class='meta'>GLRT: istotność 80.4σ · χ=1.61 · amplituda 0.0 mV · szablon unknown</p>
+              <img src="wykresy/klasa_04_test_0040_cyl6.png" alt="test_0040 cyl 6">
+            </article>
+            
+            <article id="c5">
+              <h2>5. test_0004 cylinder 5
+                <span class="kind">rozjazd nasilenia</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> zakoksowany / średnie
+                &nbsp;→&nbsp;
+                <b>widmo:</b> zakoksowany / małe
+              </p>
+              <p class='meta'>GLRT: istotność 89.9σ · χ=0.77 · amplituda 31.8 mV · szablon zakoksowany</p>
+              <img src="wykresy/nasilenie_01_test_0004_cyl5.png" alt="test_0004 cyl 5">
+            </article>
+            
+            <article id="c6">
+              <h2>6. test_0012 cylinder 8
+                <span class="kind">rozjazd nasilenia</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> zakoksowany / średnie
+                &nbsp;→&nbsp;
+                <b>widmo:</b> zakoksowany / małe
+              </p>
+              <p class='meta'>GLRT: istotność 68.6σ · χ=1.08 · amplituda 26.5 mV · szablon zakoksowany</p>
+              <img src="wykresy/nasilenie_02_test_0012_cyl8.png" alt="test_0012 cyl 8">
+            </article>
+            
+            <article id="c7">
+              <h2>7. test_0012 cylinder 12
+                <span class="kind">rozjazd nasilenia</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> zakoksowany / średnie
+                &nbsp;→&nbsp;
+                <b>widmo:</b> zakoksowany / małe
+              </p>
+              <p class='meta'>GLRT: istotność 124.8σ · χ=1.38 · amplituda 33.9 mV · szablon zakoksowany</p>
+              <img src="wykresy/nasilenie_03_test_0012_cyl12.png" alt="test_0012 cyl 12">
+            </article>
+            
+            <article id="c8">
+              <h2>8. test_0022 cylinder 7
+                <span class="kind">rozjazd nasilenia</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> pompa / średnie
+                &nbsp;→&nbsp;
+                <b>widmo:</b> pompa / małe
+              </p>
+              <p class='meta'>GLRT: istotność 59.1σ · χ=0.59 · amplituda 27.1 mV · szablon pompa</p>
+              <img src="wykresy/nasilenie_04_test_0022_cyl7.png" alt="test_0022 cyl 7">
+            </article>
+            
+            <article id="c9">
+              <h2>9. test_0033 cylinder 4
+                <span class="kind">rozjazd nasilenia</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> zakoksowany / średnie
+                &nbsp;→&nbsp;
+                <b>widmo:</b> zakoksowany / duże
+              </p>
+              <p class='meta'>GLRT: istotność 265.6σ · χ=1.66 · amplituda 53.7 mV · szablon zakoksowany</p>
+              <img src="wykresy/nasilenie_05_test_0033_cyl4.png" alt="test_0033 cyl 4">
+            </article>
+            
+            <article id="c10">
+              <h2>10. test_0043 cylinder 10
+                <span class="kind">rozjazd nasilenia</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> zakoksowany / średnie
+                &nbsp;→&nbsp;
+                <b>widmo:</b> zakoksowany / małe
+              </p>
+              <p class='meta'>GLRT: istotność 105.5σ · χ=0.90 · amplituda 33.4 mV · szablon zakoksowany</p>
+              <img src="wykresy/nasilenie_06_test_0043_cyl10.png" alt="test_0043 cyl 10">
+            </article>
+            
+            <article id="c11">
+              <h2>11. test_0045 cylinder 2
+                <span class="kind">rozjazd nasilenia</span></h2>
+              <p class="verdicts">
+                <b>TabPFN:</b> zakoksowany / średnie
+                &nbsp;→&nbsp;
+                <b>widmo:</b> zakoksowany / małe
+              </p>
+              <p class='meta'>GLRT: istotność 94.5σ · χ=0.60 · amplituda 32.1 mV · szablon zakoksowany</p>
+              <img src="wykresy/nasilenie_07_test_0045_cyl2.png" alt="test_0045 cyl 2">
+            </article>
+            
+</body>
+</html>
