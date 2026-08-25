@@ -24,6 +24,7 @@ from tabpfn_diagnose import (
     prepare_xy,
     punch_spectrum_gaps,
 )
+from unknown_clusters import assign_from_df, load as load_unknown_clusters
 
 BASE = Path(__file__).resolve().parent
 KHZ = np.arange(21)
@@ -53,6 +54,14 @@ def load_model() -> TabPFNTreeDiagnoser:
             "Brak artifacts/diagnoser_tree.joblib — najpierw: python tabpfn_diagnose.py"
         )
     return TabPFNTreeDiagnoser.load(path)
+
+
+@st.cache_resource
+def load_unknown_families():
+    path = BASE / "artifacts" / "unknown_clusters.pkl"
+    if not path.exists():
+        return None
+    return load_unknown_clusters(path)
 
 
 @st.cache_data
@@ -186,6 +195,12 @@ def main() -> None:
     expl = model.explain_row(engine, row_pos)
     bands = expl["bands_khz"]
 
+    unk_state = load_unknown_families()
+    unk_hits = assign_from_df(engine, unk_state) if unk_state is not None else None
+    unk = unk_hits[row_pos] if (unk_hits is not None and expl["label"] == "unknown") else None
+    if unk is not None and unk["matched"]:
+        bands = sorted(set(bands) | set(unk["highlight_khz"]))
+
     left, right = st.columns([1.3, 1])
     with left:
         st.subheader(f"Widmo — {engine_id}")
@@ -214,10 +229,31 @@ def main() -> None:
                 FEATURE_PL.get(s["feature"], s["feature"]) for s in expl["steps"]
             )
             st.caption(f"Cechy na ścieżce: {used}")
+        if unk is not None:
+            ucol = unk["color"]
+            st.markdown("#### Sugestia rodziny unknown")
+            st.markdown(
+                f"<div style='padding:0.85rem;border-radius:12px;background:{ucol}14;"
+                f"border:1px solid {ucol}'>"
+                f"<p style='margin:0;font-size:1.15rem;color:{ucol};font-weight:600'>"
+                f"{unk['id'] or '—'} — {unk['name']}</p>"
+                f"<p style='margin:0.35rem 0 0;font-size:0.92rem'>{unk['hint']}</p>"
+                f"<p style='margin:0.35rem 0 0;font-size:0.85rem;opacity:0.8'>"
+                f"podobieństwo kształtu (cosine) {unk['cosine']:.2f}"
+                f" &nbsp;·&nbsp; margines {unk['margin']:.2f}"
+                f" &nbsp;·&nbsp; nie zmienia etykiety <b>unknown</b></p>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
 
     st.subheader("Tabela cylindrów")
     show = merged.copy()
     show["severity"] = show["severity"].map(lambda s: SEV_PL.get(s, s))
+    if unk_hits is not None:
+        show["rodzina_unknown"] = [
+            (h["id"] + " · " + h["name"]) if lab == "unknown" and h["matched"] else ""
+            for lab, h in zip(show["label"].to_numpy(), unk_hits)
+        ]
     st.dataframe(show, use_container_width=True, hide_index=True)
 
     with st.expander("Pełne drzewo (reguły po destylacji TabPFN)"):

@@ -35,6 +35,11 @@ import numpy as np
 import pandas as pd
 
 from physics_diagnose import FREQ_COLS, SpectralGLRT
+from unknown_clusters import (
+    assign_gain_removed,
+    load as load_unknown_clusters,
+    suggestion_line,
+)
 
 BASE = Path(__file__).resolve().parent
 DEFAULT_MODEL = BASE / "artifacts" / "spectral_glrt.pkl"
@@ -58,6 +63,21 @@ TEMPLATE_BANDS: dict[str, tuple[int, ...]] = {
 
 def load(path: str | Path | None = None) -> SpectralGLRT:
     return SpectralGLRT.load(path or DEFAULT_MODEL)
+
+
+_UNK_STATE: dict | None = None
+_UNK_LOADED = False
+
+
+def _load_unknown_families() -> dict | None:
+    global _UNK_STATE, _UNK_LOADED
+    if not _UNK_LOADED:
+        _UNK_LOADED = True
+        try:
+            _UNK_STATE = load_unknown_clusters()
+        except FileNotFoundError:
+            _UNK_STATE = None
+    return _UNK_STATE
 
 
 def _f(x) -> float:
@@ -119,6 +139,9 @@ def _decision_lines(model: SpectralGLRT, row: dict) -> list[str]:
             "Odstaje wyraźnie, ale żaden szablon z katalogu nie opisuje kształtu "
             "— inna anomalia (unknown)."
         )
+        unk = row.get("unknown_family")
+        if unk:
+            lines.append(suggestion_line(unk))
     else:
         t1, t2 = model.sev_thr_[lab]
         lines.append(
@@ -151,11 +174,21 @@ def predict(df: pd.DataFrame, model: SpectralGLRT | None = None) -> dict:
 
     d = model.diagnose(df)
     n = len(df)
+    unk_state = _load_unknown_families()
+    unk_hits = None
+    if unk_state is not None:
+        from physics_diagnose import build_pool
+
+        unk_hits = assign_gain_removed(build_pool(df).gain_removed(), unk_state)
     cylinders = []
     for i in range(n):
         lab = str(d["label"][i])
         sev = str(d["severity"][i])
         tpl = str(model.tpl_label_[int(d["best"][i])])
+        unk = unk_hits[i] if (unk_hits is not None and lab == "unknown") else None
+        highlight = _highlight(lab if lab != "ok" else tpl, d["residual"][i])
+        if unk is not None and unk["matched"] and unk["highlight_khz"]:
+            highlight = list(unk["highlight_khz"])
         rec = {
             "engine_id": str(d["engine_id"][i]),
             "cylinder": int(d["cylinder"][i]),
@@ -167,7 +200,8 @@ def predict(df: pd.DataFrame, model: SpectralGLRT | None = None) -> dict:
             "chi_dopasowania": round(_f(d["gof"][i]) or 0.0, 2),
             "szablon": tpl,
             "reason": str(d["reason"][i]),
-            "highlight_khz": _highlight(lab if lab != "ok" else tpl, d["residual"][i]),
+            "unknown_family": unk,
+            "highlight_khz": highlight,
             "khz": list(range(21)),
             "spectrum_mV": _vec(d["spectrum"][i]),
             "residual_mV": _vec(d["residual"][i]),
@@ -214,6 +248,9 @@ def predict_table(df: pd.DataFrame, model: SpectralGLRT | None = None) -> pd.Dat
                 "istotnosc_sigma": c["istotnosc_sigma"],
                 "chi_dopasowania": c["chi_dopasowania"],
                 "szablon": c["szablon"],
+                "unknown_rodzina": (c["unknown_family"] or {}).get("id")
+                if c.get("unknown_family")
+                else None,
                 "decision": " ".join(c["decision"]),
             }
         )
@@ -258,7 +295,8 @@ def main() -> None:
         payload = predict(eng)
         print(json.dumps(payload["engines"], ensure_ascii=False, indent=2))
         slim = [{k: c[k] for k in ("cylinder", "label", "severity", "amplituda_mV",
-                                   "istotnosc_sigma", "chi_dopasowania", "szablon", "decision")}
+                                   "istotnosc_sigma", "chi_dopasowania", "szablon",
+                                   "unknown_family", "decision")}
                 for c in payload["cylinders"]]
         print(json.dumps(slim, ensure_ascii=False, indent=2))
 
