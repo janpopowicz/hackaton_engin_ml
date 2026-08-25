@@ -45,9 +45,11 @@ w mV, istotność w sigmach, chi-kwadrat dopasowania.
 
 from __future__ import annotations
 
+import pickle
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from sklearn.cluster import KMeans
 
 FREQ_COLS = [f"mV_{i}" for i in range(21)]
 LABELS = ["ok", "zakoksowany", "lejacy", "pompa", "iglica", "unknown"]
@@ -259,13 +261,16 @@ class SpectralGLRT:
         z_anom = (sse0 / self.sigma_**2 - dof0) / np.sqrt(2 * dof0)
         n_obs = pool.obs.sum(1).clip(1)
 
+        n_bins = pool.res.shape[1]
         sse = np.empty((len(pool), len(self.bases_)))
         amp = np.empty((len(pool), len(self.bases_)))
+        recs = np.zeros((len(pool), len(self.bases_), n_bins))
         for k, (B, t) in enumerate(zip(self.bases_, self.dirs_)):
             s, coef = _fit_subspace(pool, B)
             sse[:, k] = s
+            recs[:, k] = coef @ B
             # znak wkładu usterki: rzut dopasowanego sygnału na kierunek klasy
-            amp[:, k] = (coef @ B) @ t
+            amp[:, k] = recs[:, k] @ t
         best = sse.argmin(1)
         rows = np.arange(len(pool))
         dof = (n_obs - 1 - self.rank).clip(1)
@@ -273,6 +278,7 @@ class SpectralGLRT:
             "sse": sse, "amp": amp, "best": best, "z_anom": z_anom,
             "amp_best": amp[rows, best],
             "gof": np.sqrt(sse[rows, best] / dof) / self.sigma_,
+            "recon": recs[rows, best],
         }
 
     # ---- douczanie podprzestrzeni na danych nieoznaczonych ----------------
@@ -324,6 +330,8 @@ class SpectralGLRT:
         # rodziny "unknown": anomalie bez dobrego dopasowania do znanych klas
         odd = (st["z_anom"] >= self.z_detect_) & (st["gof"] > self.gof_max_)
         if odd.sum() >= 5 * self.n_unknown:
+            from sklearn.cluster import KMeans
+
             P = pool.take(odd).gain_removed()
             unit = P / np.linalg.norm(P, axis=1, keepdims=True).clip(1e-9)
             km = KMeans(self.n_unknown, n_init=25, random_state=0).fit(unit)
@@ -483,7 +491,25 @@ class SpectralGLRT:
             & (amp_sev >= floor)
         )
         label = np.where(good_fit, cand, "ok").astype(object)
-        label[~good_fit & (st["z_anom"] >= self.z_unknown_)] = UNKNOWN
+        as_unknown = ~good_fit & (st["z_anom"] >= self.z_unknown_)
+        label[as_unknown] = UNKNOWN
+
+        reason = np.full(len(pool), "match", dtype=object)
+        reason[st["z_anom"] < need_z] = "too_weak"
+        reason[(st["z_anom"] >= need_z) & (st["gof"] > self.gof_max_)] = "bad_shape"
+        reason[
+            (st["z_anom"] >= need_z)
+            & (st["gof"] <= self.gof_max_)
+            & (st["amp_best"] <= 0)
+        ] = "wrong_sign"
+        reason[
+            (st["z_anom"] >= need_z)
+            & (st["gof"] <= self.gof_max_)
+            & (st["amp_best"] > 0)
+            & (amp_sev < floor)
+        ] = "amp_low"
+        reason[good_fit] = "match"
+        reason[as_unknown] = "unknown"
 
         sev = np.full(len(pool), "nie_dotyczy", dtype=object)
         amp_final = self._sev_amplitude(pool, label)
@@ -495,6 +521,9 @@ class SpectralGLRT:
         st["label"] = label
         st["severity"] = sev
         st["amp_sev"] = amp_final
+        st["cand"] = cand
+        st["need_z"] = need_z
+        st["reason"] = reason
         return st
 
     def severity_for(
@@ -546,3 +575,77 @@ class SpectralGLRT:
                 "szablon": [self.tpl_label_[k] for k in out["best"]],
             }
         )
+
+    def diagnose(self, df: pd.DataFrame, pool: Pool | None = None) -> dict:
+        """Predykcja + krzywe do wykresu (residual, profil, dopasowany szablon)."""
+        df = df.reset_index(drop=True)
+        pool = pool if pool is not None else build_pool(df)
+        out = self._decide(pool)
+        spec = df[FREQ_COLS].to_numpy(float)
+        eids = df["engine_id"].to_numpy()
+        base = np.zeros_like(spec)
+        for eid in pd.unique(eids):
+            idx = np.where(eids == eid)[0]
+            b = _masked_engine_baseline(spec[idx], pool.obs[idx])
+            base[idx] = b
+        residual = np.where(pool.obs, spec - base, np.nan)
+        recon = np.asarray(out.get("recon"), dtype=float)
+        if recon.ndim != 2:
+            recon = np.zeros_like(spec)
+        recon = np.where(pool.obs, recon, np.nan)
+        return {
+            **out,
+            "spectrum": spec,
+            "profile": base,
+            "residual": residual,
+            "fitted_fault": recon,
+            "engine_id": eids,
+            "cylinder": df["cylinder"].to_numpy(),
+        }
+
+    def to_state(self) -> dict:
+        return {
+            "format": 1,
+            "rank": self.rank,
+            "n_unknown": self.n_unknown,
+            "z_floor": self.z_floor,
+            "bases": self.bases_,
+            "dirs": self.dirs_,
+            "tpl_label": self.tpl_label_,
+            "sev_dirs": self.sev_dirs_,
+            "amp_min": self.amp_min_,
+            "sigma": self.sigma_,
+            "z_detect": self.z_detect_,
+            "z_unknown": self.z_unknown_,
+            "gof_max": self.gof_max_,
+            "sev_thr": self.sev_thr_,
+        }
+
+    @classmethod
+    def from_state(cls, state: dict) -> SpectralGLRT:
+        obj = cls(
+            rank=int(state["rank"]),
+            n_unknown=int(state.get("n_unknown", 4)),
+            z_floor=float(state.get("z_floor", 6.0)),
+        )
+        obj.bases_ = list(state["bases"])
+        obj.dirs_ = list(state["dirs"])
+        obj.tpl_label_ = list(state["tpl_label"])
+        obj.sev_dirs_ = dict(state["sev_dirs"])
+        obj.amp_min_ = {k: float(v) for k, v in dict(state["amp_min"]).items()}
+        obj.sigma_ = float(state["sigma"])
+        obj.z_detect_ = float(state["z_detect"])
+        obj.z_unknown_ = float(state["z_unknown"])
+        obj.gof_max_ = float(state["gof_max"])
+        obj.sev_thr_ = {k: (float(a), float(b)) for k, (a, b) in dict(state["sev_thr"]).items()}
+        return obj
+
+    def save(self, path: str | Path) -> Path:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(pickle.dumps(self.to_state(), protocol=4))
+        return path
+
+    @classmethod
+    def load(cls, path: str | Path) -> SpectralGLRT:
+        return cls.from_state(pickle.loads(Path(path).read_bytes()))
