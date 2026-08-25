@@ -1,0 +1,58 @@
+LOEO (leave-one-engine-out) na val_full.csv: 40 silników, 476 cylindrów, 69 usterek.
+Na val_full nałożone te same ~5% luk pomiarowych co w test.csv (punch_spectrum_gaps).
+Wszystko, co dotyka etykiet (wzorce, progi nasilenia, progi decyzyjne) liczone
+wyłącznie na silnikach treningowych fałdy.  Odtworzenie: python evaluate_loeo.py
+
+                          macro F1   sev acc   raw score   95% CI      błędy klasy / nasilenia
+drzewo destylowane          0.8669    0.8246      0.8563   [0.767, 0.915]     11 / 5
+las losowy                  0.9080    0.8070      0.8827   [0.808, 0.941]      7 / 6
+TabPFN                      0.9910    0.8947      0.9670   [0.944, 0.987]      1 / 6
+model widmowy (GLRT)        0.9900    0.9474      0.9793   [0.945, 1.000]      1 / 2
+hybryda TabPFN + GLRT       0.9910    0.9649      0.9845   [0.961, 1.000]      1 / 2
+
+Porównania sparowane (bootstrap po silnikach, 2 tys. losowań), baza: hybryda:
+  hybryda - TabPFN : dRaw = +0.0178   95% CI [+0.0000, +0.0399]   P(lepszy) = 0.94
+  hybryda - GLRT   : dRaw = +0.0062   95% CI [-0.0182, +0.0427]   P(lepszy) = 0.55
+  hybryda - las    : dRaw = +0.1058   95% CI [+0.0487, +0.1778]   P(lepszy) = 1.00
+  hybryda - drzewo : dRaw = +0.1362   95% CI [+0.0646, +0.2253]   P(lepszy) = 1.00
+
+Jedyna przewaga, która wychodzi poza szum, to hybryda nad TabPFN (+0.018) i
+bierze się w całości z nasilenia: 6 błędów spada do 2. Klasa jest remisem --
+wszystkie trzy najlepsze warianty mylą dokładnie jeden cylinder z 476.
+
+CZEGO TE LICZBY NIE MOWIA
+-------------------------
+1. Przedział ufności ma szerokość ok. +-0.04. Przy 9 cylindrach klasy "pompa"
+   i 12 klasy "unknown" jeden błąd to 0.006-0.008 raw score. Różnica GLRT
+   kontra TabPFN (0.012) to dwa cylindry i nie jest istotna statystycznie.
+   Poprzednia tabela (las 0.9405 vs TabPFN 0.9581) porównywała szum.
+2. Nie ma wycieku etykiet: silnik testowy nie wchodzi do treningu, wzorce ani
+   progi. Ale kilka stałych i cały wybór modelu powstały na tej samej puli:
+   OK_L2_MAX = 32.0, _SEV_DEFAULTS, wybór pasm (dip9/peak12/dip3/dip18),
+   TREE_DEPTH, CONF_MIN. LOEO tego kosztu nie mierzy, więc jest optymistyczne.
+   To samo zastrzeżenie dotyczy GLRT: postać modelu wybrałem, patrząc na
+   wszystkie 40 silników.
+3. Warunki fałdy odpowiadają testowi. Po nałożeniu luk val_full jest
+   statystycznie nieodróżnialny od test.csv (klasyfikator domenowy AUC 0.58,
+   ta sama sigma szumu 1.31 mV, te same kwantyle residuum). Nieznany pozostaje
+   rozkład klas w teście -- w przewidywaniach na teście wychodzi ok. 20-22
+   cylindrów "unknown" wobec 15 oczekiwanych z priorów val_full, i tak samo
+   widzą to oba modele niezależnie.
+
+GDZIE JEST SUFIT
+----------------
+Symulacja z odtworzonego generatora (analiza.py, sekcja E): przy poprawnym
+modelu szumu rozróżnienie 4 usterek ma trafność 0.9999. Zadanie klasyfikacji
+jest praktycznie deterministyczne, więc macro-F1 0.99 to już sufit.
+
+Wąskim gardłem jest nasilenie, warte 25% metryki. Zmierzony sufit to 0.965:
+dokładnie dwa cylindry w całym zbiorze (val_0034 c6, val_0035 c6) leżą na
+granicy przedziałów amplitudy i są nierozstrzygalne. Hybryda ten sufit osiąga.
+
+DLACZEGO NASILENIE ZYSKALO 0.895 -> 0.965
+-----------------------------------------
+Stare progi stały na normie residuum ||r||, która zawiera szum i jitter
+wzmocnienia: E||r||^2 = a^2 + n*sigma^2. Przy nasileniu "male" (a ~ 25 mV)
+ten dodatek dominuje. Rzut na kierunek klasy <r,t>/<t,t> jest nieobciążony,
+a generator skaluje amplitudę mnożnikiem ~1 / ~1.45 / ~2.0, więc przedziały
+mają wyraźne przerwy.
