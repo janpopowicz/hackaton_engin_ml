@@ -22,6 +22,7 @@ from tabpfn_diagnose import (
     TabPFNTreeDiagnoser,
     interpolate_spectrum,
     prepare_xy,
+    punch_spectrum_gaps,
 )
 
 BASE = Path(__file__).resolve().parent
@@ -64,7 +65,7 @@ def spectrum_figure(
     highlight_khz: list[int],
     selected_cyl: int,
 ) -> go.Figure:
-    engine = interpolate_spectrum(engine)
+    engine = interpolate_spectrum(punch_spectrum_gaps(engine))
     fig = go.Figure()
     for _, row in engine.iterrows():
         cyl = int(row["cylinder"])

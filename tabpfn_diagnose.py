@@ -8,6 +8,8 @@ sklearn tree is distilled on named acoustic features so that:
 * each verdict is an if/then path a mechanic can read (explainability).
 
 Honest score is `final_valid.csv` (held-out engines, never used in fit).
+val/final_valid get the same ~5% spectrum holes as test.csv before fit
+and scoring; train.csv/test.csv already have them.
 Severity stays physics-based (signature magnitude), not a second model.
 
 Colab T4:  Runtime → GPU, then `python tabpfn_diagnose.py --cv`
@@ -17,6 +19,7 @@ CPU only:  `python tabpfn_diagnose.py`  (skip --cv if you just need the app)
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -91,6 +94,11 @@ _SEV_DEFAULTS = {
 CONF_MIN = 0.70
 TREE_DEPTH = 6
 OK_L2_MAX = 32.0
+# val.csv / final_valid.csv are complete lab spectra. test.csv already has
+# ~5% missing bins. Punch the same pattern into labeled data so CV/holdout
+# match the submit distribution.
+GAP_RATE = 0.05
+GAP_SEED = 0
 LABELED_COLS = ["engine_id", "cylinder", "n_cylinders", *FREQ_COLS, "label", "severity"]
 
 
@@ -100,6 +108,63 @@ def read_labeled_csv(path: Path) -> pd.DataFrame:
     if "engine_id" in header.columns:
         return pd.read_csv(path)
     return pd.read_csv(path, header=None, names=LABELED_COLS)
+
+
+def _row_gap_seed(seed: int, engine_id: str, cylinder: int) -> int:
+    payload = f"{int(seed)}:{engine_id}:{int(cylinder)}".encode()
+    return int.from_bytes(hashlib.blake2b(payload, digest_size=8).digest(), "little")
+
+
+def punch_spectrum_gaps(
+    df: pd.DataFrame,
+    *,
+    rate: float = GAP_RATE,
+    seed: int = GAP_SEED,
+    verbose: bool = False,
+) -> pd.DataFrame:
+    """Drop ~rate of spectrum bins, matching workshop/test missingness.
+
+    Independent Bernoulli per 1 kHz bin (~5%) reproduces train/test: ~65% of
+    rows have a hole, runs are almost all length 1, rarely 2–3. Sets that
+    already contain NaNs (train.csv, test.csv) are left unchanged.
+    Masks are keyed by engine_id+cylinder so CV/LOEO/predict stay aligned.
+    """
+    out = df.copy()
+    spec = out[FREQ_COLS].to_numpy(dtype=float, copy=True)
+    if np.isnan(spec).any():
+        if verbose:
+            n_nan = int(np.isnan(spec).sum())
+            print(
+                f"  luki pomiarowe: już {n_nan}/{spec.size} "
+                f"({100 * n_nan / spec.size:.2f}%) — nie dubluję"
+            )
+        return out
+    if rate <= 0:
+        return out
+
+    n_rows, n_bins = spec.shape
+    eids = out["engine_id"].astype(str).to_numpy()
+    cyls = np.asarray(out["cylinder"], dtype=np.int64)
+    drop = np.zeros((n_rows, n_bins), dtype=bool)
+    min_keep = 2
+    for i in range(n_rows):
+        rng = np.random.default_rng(_row_gap_seed(seed, eids[i], int(cyls[i])))
+        mask = rng.random(n_bins) < rate
+        if int((~mask).sum()) < min_keep:
+            mask[:] = False
+            n_drop = min(n_bins - min_keep, max(1, int(round(rate * n_bins))))
+            mask[rng.choice(n_bins, size=n_drop, replace=False)] = True
+        drop[i] = mask
+    spec[drop] = np.nan
+    out[FREQ_COLS] = spec
+    if verbose:
+        n_nan = int(drop.sum())
+        n_hit = int(drop.any(axis=1).sum())
+        print(
+            f"  luki pomiarowe: {n_nan}/{spec.size} ({100 * n_nan / spec.size:.2f}%)  "
+            f"wiersze z luką: {n_hit}/{n_rows}"
+        )
+    return out
 
 
 def interpolate_spectrum(df: pd.DataFrame) -> pd.DataFrame:
@@ -183,6 +248,7 @@ def prepare_xy(
     templates: dict[str, np.ndarray] | None = None,
     labels_for_templates: np.ndarray | None = None,
 ) -> tuple[pd.DataFrame, np.ndarray, dict[str, np.ndarray], dict[str, np.ndarray]]:
+    df = punch_spectrum_gaps(df)
     df = interpolate_spectrum(df)
     spectra = df[FREQ_COLS].to_numpy(float)
     engine_ids = df["engine_id"].to_numpy()
@@ -485,6 +551,7 @@ class TabPFNTreeDiagnoser:
     ) -> dict:
         """5-fold GroupKFold by engine. Templates rebuilt on training engines only."""
         print("\nGroupKFold(5) by engine — TabPFN teacher ...")
+        val = punch_spectrum_gaps(val)
         engines = val["engine_id"].to_numpy()
         residual = compute_residuals(
             interpolate_spectrum(val)[FREQ_COLS].to_numpy(float), engines
@@ -636,7 +703,8 @@ def leave_one_engine_out(
     """
     device = device or pick_device()
     n_estimators = n_estimators or (8 if device == "cuda" else 4)
-    labeled = interpolate_spectrum(labeled.reset_index(drop=True))
+    labeled = punch_spectrum_gaps(labeled.reset_index(drop=True), verbose=True)
+    labeled = interpolate_spectrum(labeled)
     engines = labeled["engine_id"].to_numpy()
     y = labeled["label"].to_numpy()
     s = labeled["severity"].to_numpy()
@@ -766,6 +834,11 @@ def main() -> None:
     holdout = read_labeled_csv(BASE_DIR / "final_valid.csv")
     test = pd.read_csv(BASE_DIR / "test.csv")
     train = None if args.no_train else pd.read_csv(BASE_DIR / "train.csv")
+    print("symulacja luk warsztatowych na val / final_valid (train/test już je mają):")
+    val = punch_spectrum_gaps(val, verbose=True)
+    holdout = punch_spectrum_gaps(holdout, verbose=True)
+    if train is not None:
+        punch_spectrum_gaps(train, verbose=True)
 
     overlap = set(val["engine_id"]) & set(holdout["engine_id"])
     assert not overlap, f"wyciek silników val ∩ final_valid: {sorted(overlap)}"

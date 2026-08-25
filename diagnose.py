@@ -13,11 +13,16 @@ Approach
 Train on labeled `val.csv`. Honest score is `final_valid.csv` (held-out
 engines that never enter fit). `test.csv` is the unlabeled submit set.
 Optional `--loeo` still runs leave-one-engine-out on val.
+
+val/final_valid are complete lab measurements. Before fit, CV, LOEO and
+holdout scoring we punch ~5% spectrum NaNs (same process as train/test)
+so the score tracks the gappy submit set rather than a clean lab replay.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -34,6 +39,12 @@ SEV_ORDER = ["male", "srednie", "duze"]
 # Residual L2 above this, with an "ok" RF vote, is treated as unknown.
 OK_L2_MAX = 32.0
 
+# val.csv / final_valid.csv are complete lab spectra. test.csv already has
+# ~5% missing bins (independent Bernoulli, mostly isolated 1 kHz holes).
+# Punch the same pattern into labeled data so train/CV/holdout match test.
+GAP_RATE = 0.05
+GAP_SEED = 0
+
 
 LABELED_COLS = ["engine_id", "cylinder", "n_cylinders", *FREQ_COLS, "label", "severity"]
 
@@ -44,6 +55,63 @@ def read_labeled_csv(path: Path) -> pd.DataFrame:
     if "engine_id" in header.columns:
         return pd.read_csv(path)
     return pd.read_csv(path, header=None, names=LABELED_COLS)
+
+
+def _row_gap_seed(seed: int, engine_id: str, cylinder: int) -> int:
+    payload = f"{int(seed)}:{engine_id}:{int(cylinder)}".encode()
+    return int.from_bytes(hashlib.blake2b(payload, digest_size=8).digest(), "little")
+
+
+def punch_spectrum_gaps(
+    df: pd.DataFrame,
+    *,
+    rate: float = GAP_RATE,
+    seed: int = GAP_SEED,
+    verbose: bool = False,
+) -> pd.DataFrame:
+    """Drop ~rate of spectrum bins, matching workshop/test missingness.
+
+    Independent Bernoulli per 1 kHz bin (~5%) reproduces train/test: ~65% of
+    rows have a hole, runs are almost all length 1, rarely 2–3. Sets that
+    already contain NaNs (train.csv, test.csv) are left unchanged.
+    Masks are keyed by engine_id+cylinder so CV/LOEO/predict stay aligned.
+    """
+    out = df.copy()
+    spec = out[FREQ_COLS].to_numpy(dtype=float, copy=True)
+    if np.isnan(spec).any():
+        if verbose:
+            n_nan = int(np.isnan(spec).sum())
+            print(
+                f"  luki pomiarowe: już {n_nan}/{spec.size} "
+                f"({100 * n_nan / spec.size:.2f}%) — nie dubluję"
+            )
+        return out
+    if rate <= 0:
+        return out
+
+    n_rows, n_bins = spec.shape
+    eids = out["engine_id"].astype(str).to_numpy()
+    cyls = np.asarray(out["cylinder"], dtype=np.int64)
+    drop = np.zeros((n_rows, n_bins), dtype=bool)
+    min_keep = 2
+    for i in range(n_rows):
+        rng = np.random.default_rng(_row_gap_seed(seed, eids[i], int(cyls[i])))
+        mask = rng.random(n_bins) < rate
+        if int((~mask).sum()) < min_keep:
+            mask[:] = False
+            n_drop = min(n_bins - min_keep, max(1, int(round(rate * n_bins))))
+            mask[rng.choice(n_bins, size=n_drop, replace=False)] = True
+        drop[i] = mask
+    spec[drop] = np.nan
+    out[FREQ_COLS] = spec
+    if verbose:
+        n_nan = int(drop.sum())
+        n_hit = int(drop.any(axis=1).sum())
+        print(
+            f"  luki pomiarowe: {n_nan}/{spec.size} ({100 * n_nan / spec.size:.2f}%)  "
+            f"wiersze z luką: {n_hit}/{n_rows}"
+        )
+    return out
 
 
 def interpolate_spectrum(df: pd.DataFrame) -> pd.DataFrame:
@@ -261,6 +329,7 @@ class Diagnoser:
         )
 
     def fit(self, df: pd.DataFrame) -> "Diagnoser":
+        df = punch_spectrum_gaps(df)
         df = interpolate_spectrum(df)
         spectra = df[FREQ_COLS].to_numpy(float)
         engine_ids = df["engine_id"].to_numpy()
@@ -277,6 +346,7 @@ class Diagnoser:
 
     def predict(self, df: pd.DataFrame) -> pd.DataFrame:
         assert self.rf is not None and self.templates is not None and self.sev_thr is not None
+        df = punch_spectrum_gaps(df)
         df = interpolate_spectrum(df)
         spectra = df[FREQ_COLS].to_numpy(float)
         engine_ids = df["engine_id"].to_numpy()
@@ -300,6 +370,7 @@ class Diagnoser:
 
 def leave_one_engine_out(val: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
     """True LOEO: templates, RF and severity cutoffs never see the held-out engine."""
+    val = punch_spectrum_gaps(val, verbose=True)
     val = interpolate_spectrum(val)
     spectra = val[FREQ_COLS].to_numpy(float)
     engine_ids = val["engine_id"].to_numpy()
@@ -373,6 +444,9 @@ def main() -> None:
     val = read_labeled_csv(BASE_DIR / "val.csv")
     holdout = read_labeled_csv(BASE_DIR / "final_valid.csv")
     test = pd.read_csv(BASE_DIR / "test.csv")
+    print("symulacja luk warsztatowych na val / final_valid (test już je ma):")
+    val = punch_spectrum_gaps(val, verbose=True)
+    holdout = punch_spectrum_gaps(holdout, verbose=True)
 
     print(
         f"train val.csv: {val['engine_id'].nunique()} silników, {len(val)} cylindrów"

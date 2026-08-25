@@ -47,7 +47,7 @@ test_0004,1,ok,nie_dotyczy
 test_0004,2,ok,nie_dotyczy
 test_0004,3,ok,nie_dotyczy
 test_0004,4,ok,nie_dotyczy
-test_0004,5,zakoksowany,male
+test_0004,5,zakoksowany,srednie
 test_0004,6,ok,nie_dotyczy
 test_0004,7,lejacy,srednie
 test_0004,8,ok,nie_dotyczy
@@ -162,7 +162,7 @@ test_0012,4,ok,nie_dotyczy
 test_0012,5,ok,nie_dotyczy
 test_0012,6,ok,nie_dotyczy
 test_0012,7,ok,nie_dotyczy
-test_0012,8,zakoksowany,male
+test_0012,8,zakoksowany,srednie
 test_0012,9,ok,nie_dotyczy
 test_0012,10,ok,nie_dotyczy
 test_0012,11,ok,nie_dotyczy
@@ -224,7 +224,7 @@ test_0017,10,ok,nie_dotyczy
 test_0017,11,ok,nie_dotyczy
 test_0017,12,ok,nie_dotyczy
 test_0018,1,ok,nie_dotyczy
-test_0018,2,zakoksowany,male
+test_0018,2,unknown,nie_dotyczy
 test_0018,3,ok,nie_dotyczy
 test_0018,4,ok,nie_dotyczy
 test_0018,5,ok,nie_dotyczy
@@ -268,7 +268,7 @@ test_0021,6,ok,nie_dotyczy
 test_0021,7,ok,nie_dotyczy
 test_0021,8,ok,nie_dotyczy
 test_0022,1,ok,nie_dotyczy
-test_0022,2,pompa,male
+test_0022,2,ok,nie_dotyczy
 test_0022,3,ok,nie_dotyczy
 test_0022,4,ok,nie_dotyczy
 test_0022,5,ok,nie_dotyczy
@@ -372,7 +372,7 @@ test_0030,10,ok,nie_dotyczy
 test_0030,11,ok,nie_dotyczy
 test_0030,12,ok,nie_dotyczy
 test_0031,1,ok,nie_dotyczy
-test_0031,2,unknown,nie_dotyczy
+test_0031,2,iglica,srednie
 test_0031,3,ok,nie_dotyczy
 test_0031,4,ok,nie_dotyczy
 test_0031,5,ok,nie_dotyczy
@@ -512,7 +512,7 @@ test_0043,6,ok,nie_dotyczy
 test_0043,7,ok,nie_dotyczy
 test_0043,8,unknown,nie_dotyczy
 test_0043,9,ok,nie_dotyczy
-test_0043,10,zakoksowany,male
+test_0043,10,zakoksowany,srednie
 test_0043,11,ok,nie_dotyczy
 test_0043,12,ok,nie_dotyczy
 test_0044,1,ok,nie_dotyczy
@@ -532,7 +532,7 @@ test_0044,14,ok,nie_dotyczy
 test_0044,15,ok,nie_dotyczy
 test_0044,16,ok,nie_dotyczy
 test_0045,1,ok,nie_dotyczy
-test_0045,2,zakoksowany,male
+test_0045,2,zakoksowany,srednie
 test_0045,3,ok,nie_dotyczy
 test_0045,4,ok,nie_dotyczy
 test_0045,5,ok,nie_dotyczy
@@ -561,7 +561,7 @@ test_0047,3,ok,nie_dotyczy
 test_0047,4,ok,nie_dotyczy
 test_0047,5,ok,nie_dotyczy
 test_0047,6,ok,nie_dotyczy
-test_0047,7,zakoksowany,male
+test_0047,7,zakoksowany,srednie
 test_0047,8,zakoksowany,srednie
 test_0047,9,ok,nie_dotyczy
 test_0047,10,ok,nie_dotyczy
