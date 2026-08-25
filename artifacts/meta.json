@@ -2,24 +2,24 @@
   "device": "cpu",
   "n_estimators": 4,
   "tree_depth": 6,
-  "n_pseudo": 2367,
-  "n_student": 2695,
+  "n_pseudo": 2395,
+  "n_student": 2871,
   "conf_min": 0.7,
-  "val_raw_score": 1.0,
-  "val_macro_f1": 1.0,
-  "val_sev_acc": 1.0,
-  "fidelity_vs_tabpfn": 1.0,
+  "val_raw_score": 0.9671520128735123,
+  "val_macro_f1": 0.9795944966968467,
+  "val_sev_acc": 0.9298245614035088,
+  "fidelity_vs_tabpfn": 0.9957983193277311,
   "train_pseudo": {
-    "kept": 2367,
+    "kept": 2395,
     "total": 2400,
     "conf_min": 0.7,
     "label_counts": {
-      "ok": 2033,
+      "ok": 2050,
       "unknown": 78,
-      "zakoksowany": 67,
-      "iglica": 66,
-      "pompa": 62,
-      "lejacy": 61
+      "zakoksowany": 73,
+      "iglica": 68,
+      "pompa": 64,
+      "lejacy": 62
     }
   }
 }

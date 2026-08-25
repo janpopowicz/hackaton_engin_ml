@@ -1,40 +1,49 @@
 |--- residual 9 kHz vs. baseline silnika <= -8.43
-|   |--- dołek przy 9 kHz (koks) <= -6.45
-|   |   |--- class: zakoksowany
-|   |--- dołek przy 9 kHz (koks) >  -6.45
-|   |   |--- podobieństwo do wzorca: zakoksowany <= -0.30
-|   |   |   |--- residual 15 kHz vs. baseline silnika <= -15.38
-|   |   |   |   |--- class: lejacy
-|   |   |   |--- residual 15 kHz vs. baseline silnika >  -15.38
-|   |   |   |   |--- class: pompa
-|   |   |--- podobieństwo do wzorca: zakoksowany >  -0.30
-|   |   |   |--- podobieństwo do wzorca: iglica <= 0.94
-|   |   |   |   |--- podobieństwo do wzorca: pompa <= 0.87
-|   |   |   |   |   |--- odchyłka L2 od profilu silnika <= 39.80
-|   |   |   |   |   |   |--- class: ok
-|   |   |   |   |   |--- odchyłka L2 od profilu silnika >  39.80
+|   |--- podobieństwo do wzorca: zakoksowany <= 0.81
+|   |   |--- podobieństwo do wzorca: lejący <= 0.98
+|   |   |   |--- podobieństwo do wzorca: iglica <= 0.93
+|   |   |   |   |--- podobieństwo do wzorca: pompa <= 0.92
+|   |   |   |   |   |--- residual 7 kHz vs. baseline silnika <= -10.35
 |   |   |   |   |   |   |--- class: unknown
-|   |   |   |   |--- podobieństwo do wzorca: pompa >  0.87
-|   |   |   |   |   |--- residual 16 kHz vs. baseline silnika <= -2.02
+|   |   |   |   |   |--- residual 7 kHz vs. baseline silnika >  -10.35
 |   |   |   |   |   |   |--- class: pompa
-|   |   |   |   |   |--- residual 16 kHz vs. baseline silnika >  -2.02
-|   |   |   |   |   |   |--- class: pompa
-|   |   |   |--- podobieństwo do wzorca: iglica >  0.94
+|   |   |   |   |--- podobieństwo do wzorca: pompa >  0.92
+|   |   |   |   |   |--- class: pompa
+|   |   |   |--- podobieństwo do wzorca: iglica >  0.93
+|   |   |   |   |--- residual 3 kHz vs. baseline silnika <= -4.77
+|   |   |   |   |   |--- class: iglica
+|   |   |   |   |--- residual 3 kHz vs. baseline silnika >  -4.77
+|   |   |   |   |   |--- class: iglica
+|   |   |--- podobieństwo do wzorca: lejący >  0.98
+|   |   |   |--- podobieństwo do wzorca: zakoksowany <= -0.31
+|   |   |   |   |--- class: lejacy
+|   |   |   |--- podobieństwo do wzorca: zakoksowany >  -0.31
 |   |   |   |   |--- class: iglica
+|   |--- podobieństwo do wzorca: zakoksowany >  0.81
+|   |   |--- residual 17 kHz vs. baseline silnika <= 20.96
+|   |   |   |--- class: zakoksowany
+|   |   |--- residual 17 kHz vs. baseline silnika >  20.96
+|   |   |   |--- class: zakoksowany
 |--- residual 9 kHz vs. baseline silnika >  -8.43
-|   |--- odchyłka L2 od profilu silnika <= 34.16
-|   |   |--- residual 13 kHz vs. baseline silnika <= -7.34
-|   |   |   |--- residual 1 kHz vs. baseline silnika <= -5.30
-|   |   |   |   |--- class: ok
-|   |   |   |--- residual 1 kHz vs. baseline silnika >  -5.30
+|   |--- odchyłka L2 od profilu silnika <= 34.02
+|   |   |--- podobieństwo do wzorca: pompa <= 0.93
+|   |   |   |--- residual 11 kHz vs. baseline silnika <= -8.46
 |   |   |   |   |--- class: pompa
-|   |   |--- residual 13 kHz vs. baseline silnika >  -7.34
-|   |   |   |--- residual 3 kHz vs. baseline silnika <= -9.19
-|   |   |   |   |--- class: ok
-|   |   |   |--- residual 3 kHz vs. baseline silnika >  -9.19
-|   |   |   |   |--- residual 2 kHz vs. baseline silnika <= -7.07
+|   |   |   |--- residual 11 kHz vs. baseline silnika >  -8.46
+|   |   |   |   |--- odbicie 9 → 12 kHz <= 4.98
+|   |   |   |   |   |--- residual 2 kHz vs. baseline silnika <= -7.47
+|   |   |   |   |   |   |--- class: ok
+|   |   |   |   |   |--- residual 2 kHz vs. baseline silnika >  -7.47
+|   |   |   |   |   |   |--- class: ok
+|   |   |   |   |--- odbicie 9 → 12 kHz >  4.98
 |   |   |   |   |   |--- class: ok
-|   |   |   |   |--- residual 2 kHz vs. baseline silnika >  -7.07
-|   |   |   |   |   |--- class: ok
-|   |--- odchyłka L2 od profilu silnika >  34.16
-|   |   |--- class: unknown
+|   |   |--- podobieństwo do wzorca: pompa >  0.93
+|   |   |   |--- residual 15 kHz vs. baseline silnika <= -3.43
+|   |   |   |   |--- class: pompa
+|   |   |   |--- residual 15 kHz vs. baseline silnika >  -3.43
+|   |   |   |   |--- class: pompa
+|   |--- odchyłka L2 od profilu silnika >  34.02
+|   |   |--- residual 4 kHz vs. baseline silnika <= -1.37
+|   |   |   |--- class: unknown
+|   |   |--- residual 4 kHz vs. baseline silnika >  -1.37
+|   |   |   |--- class: unknown

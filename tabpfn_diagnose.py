@@ -592,10 +592,11 @@ class TabPFNTreeDiagnoser:
         print(f"CV  macro-F1={macro:.4f}  severity_acc={sev_acc:.4f}  Raw_Score={raw:.4f}")
         return {"raw": raw, "macro_f1": macro, "sev_acc": sev_acc}
 
-    def predict(self, df: pd.DataFrame) -> pd.DataFrame:
-        assert self.tree is not None and self.sev_thr is not None
+    def predict_with(self, df: pd.DataFrame, clf) -> pd.DataFrame:
+        """Label + severity for any classifier with ``.predict`` (tree / TabPFN / …)."""
+        assert self.sev_thr is not None
         X, sig = self._xy_from_df(df)
-        labels = guard_unknown(self.tree.predict(X.to_numpy(float)), sig["l2"])
+        labels = guard_unknown(np.asarray(clf.predict(X.to_numpy(float))), sig["l2"])
         sev = apply_severity(labels, severity_magnitude(sig), self.sev_thr)
         return pd.DataFrame(
             {
@@ -606,19 +607,23 @@ class TabPFNTreeDiagnoser:
             }
         )
 
+    def predict(self, df: pd.DataFrame) -> pd.DataFrame:
+        assert self.tree is not None
+        return self.predict_with(df, self.tree)
+
     def predict_teacher(self, df: pd.DataFrame, teacher: TabPFNClassifier) -> pd.DataFrame:
-        assert self.sev_thr is not None
-        X, sig = self._xy_from_df(df)
-        labels = guard_unknown(teacher.predict(X.to_numpy(float)), sig["l2"])
-        sev = apply_severity(labels, severity_magnitude(sig), self.sev_thr)
-        return pd.DataFrame(
-            {
-                "engine_id": df["engine_id"].to_numpy(),
-                "cylinder": df["cylinder"].to_numpy(),
-                "label": labels,
-                "severity": sev,
-            }
+        return self.predict_with(df, teacher)
+
+    def fit_plain_tree(self) -> DecisionTreeClassifier:
+        """Supervised tree on true labeled rows only — no TabPFN, no pseudo-labels."""
+        assert self.X_val_ is not None and self.y_val_ is not None
+        tree = DecisionTreeClassifier(
+            max_depth=TREE_DEPTH,
+            min_samples_leaf=4,
+            random_state=self.random_state,
         )
+        tree.fit(self.X_val_.to_numpy(float), self.y_val_)
+        return tree
 
     def explain_row(self, df: pd.DataFrame, index: int) -> dict:
         assert self.tree is not None and self.sev_thr is not None
@@ -698,7 +703,8 @@ def leave_one_engine_out(
     """Leave-one-engine-out on a labeled pool concatenated in memory.
 
     Does not read/write ``val.csv`` / ``final_valid.csv``. Per held-out engine:
-    TabPFN teacher, tree on fold labels only, tree on fold labels + pseudo-train.
+    plain tree on fold labels, TabPFN teacher, distilled tree on fold labels,
+    distilled tree on fold labels + pseudo-train.
     Templates, teacher and severity cuts never see the held-out engine.
     """
     device = device or pick_device()
@@ -714,7 +720,7 @@ def leave_one_engine_out(
     mag_all = severity_magnitude(sig)
     unique = np.unique(engines)
     n = len(labeled)
-    names = ("tabpfn", "tree_val", "tree_val_train")
+    names = ("plain_tree", "tabpfn", "tree_val", "tree_val_train")
     pred_y = {k: np.empty(n, dtype=object) for k in names}
     pred_s = {k: np.empty(n, dtype=object) for k in names}
 
@@ -738,18 +744,27 @@ def leave_one_engine_out(
             cosine_to_templates(residual[te], templates),
             n_cyl[te],
         )
+        X_tr_np = X_tr.to_numpy(float)
+        X_te_np = X_te.to_numpy(float)
+
+        plain = DecisionTreeClassifier(
+            max_depth=TREE_DEPTH, min_samples_leaf=4, random_state=0
+        )
+        plain.fit(X_tr_np, y[tr])
+        y_plain = guard_unknown(plain.predict(X_te_np), sig["l2"][te])
+
         teacher = make_teacher(device, n_estimators)
-        teacher.fit(X_tr.to_numpy(float), y[tr])
-        y_tab = guard_unknown(teacher.predict(X_te.to_numpy(float)), sig["l2"][te])
+        teacher.fit(X_tr_np, y[tr])
+        y_tab = guard_unknown(teacher.predict(X_te_np), sig["l2"][te])
 
         tree_val = DecisionTreeClassifier(
             max_depth=TREE_DEPTH, min_samples_leaf=4, random_state=0
         )
         w_val = np.full(int(tr.sum()), 2.0)
-        tree_val.fit(X_tr.to_numpy(float), y[tr], sample_weight=w_val)
-        y_tree_val = guard_unknown(tree_val.predict(X_te.to_numpy(float)), sig["l2"][te])
+        tree_val.fit(X_tr_np, y[tr], sample_weight=w_val)
+        y_tree_val = guard_unknown(tree_val.predict(X_te_np), sig["l2"][te])
 
-        X_parts = [X_tr.to_numpy(float)]
+        X_parts = [X_tr_np]
         y_parts = [y[tr]]
         w_parts = [w_val]
         if train is not None and len(train):
@@ -770,15 +785,17 @@ def leave_one_engine_out(
             np.concatenate(y_parts),
             sample_weight=np.concatenate(w_parts),
         )
-        y_tree_big = guard_unknown(tree_big.predict(X_te.to_numpy(float)), sig["l2"][te])
+        y_tree_big = guard_unknown(tree_big.predict(X_te_np), sig["l2"][te])
 
         thr = fit_severity_thresholds(
             y[tr], s[tr], {k: v[tr] for k, v in mag_all.items()}
         )
         mag_te = {k: v[te] for k, v in mag_all.items()}
+        pred_y["plain_tree"][te] = y_plain
         pred_y["tabpfn"][te] = y_tab
         pred_y["tree_val"][te] = y_tree_val
         pred_y["tree_val_train"][te] = y_tree_big
+        pred_s["plain_tree"][te] = apply_severity(y_plain, mag_te, thr)
         pred_s["tabpfn"][te] = apply_severity(y_tab, mag_te, thr)
         pred_s["tree_val"][te] = apply_severity(y_tree_val, mag_te, thr)
         pred_s["tree_val_train"][te] = apply_severity(y_tree_big, mag_te, thr)
@@ -786,12 +803,13 @@ def leave_one_engine_out(
             print(f"  {i}/{len(unique)}  held-out={eid}")
 
     titles = {
+        "plain_tree": "LOEO — zwykłe drzewo ← labeled (bez TabPFN)",
         "tabpfn": "LOEO — TabPFN teacher",
-        "tree_val_train": "LOEO — drzewo ← labeled + pseudo-train",
-        "tree_val": "LOEO — drzewo ← tylko labeled",
+        "tree_val_train": "LOEO — drzewo destylowane ← labeled + pseudo-train",
+        "tree_val": "LOEO — drzewo destylowane ← tylko labeled",
     }
     results: dict[str, dict[str, float]] = {}
-    for name in ("tabpfn", "tree_val_train", "tree_val"):
+    for name in ("plain_tree", "tabpfn", "tree_val_train", "tree_val"):
         raw, macro, sev = print_eval(titles[name], y, pred_y[name], s, pred_s[name])
         results[name] = {"raw": float(raw), "macro_f1": float(macro), "sev_acc": float(sev)}
         err = pred_y[name] != y
