@@ -152,7 +152,7 @@ test_0011,10,ok,nie_dotyczy
 test_0011,11,lejacy,male
 test_0011,12,ok,nie_dotyczy
 test_0011,13,ok,nie_dotyczy
-test_0011,14,lejacy,male
+test_0011,14,iglica,duze
 test_0011,15,ok,nie_dotyczy
 test_0011,16,ok,nie_dotyczy
 test_0012,1,ok,nie_dotyczy
@@ -273,7 +273,7 @@ test_0022,3,ok,nie_dotyczy
 test_0022,4,ok,nie_dotyczy
 test_0022,5,ok,nie_dotyczy
 test_0022,6,ok,nie_dotyczy
-test_0022,7,pompa,srednie
+test_0022,7,pompa,male
 test_0022,8,ok,nie_dotyczy
 test_0023,1,ok,nie_dotyczy
 test_0023,2,ok,nie_dotyczy
@@ -398,7 +398,7 @@ test_0032,16,ok,nie_dotyczy
 test_0033,1,ok,nie_dotyczy
 test_0033,2,ok,nie_dotyczy
 test_0033,3,ok,nie_dotyczy
-test_0033,4,zakoksowany,srednie
+test_0033,4,zakoksowany,duze
 test_0033,5,ok,nie_dotyczy
 test_0033,6,ok,nie_dotyczy
 test_0033,7,ok,nie_dotyczy
@@ -434,7 +434,7 @@ test_0036,4,ok,nie_dotyczy
 test_0036,5,ok,nie_dotyczy
 test_0036,6,ok,nie_dotyczy
 test_0036,7,ok,nie_dotyczy
-test_0036,8,iglica,srednie
+test_0036,8,iglica,male
 test_0036,9,ok,nie_dotyczy
 test_0036,10,ok,nie_dotyczy
 test_0036,11,ok,nie_dotyczy
@@ -551,7 +551,7 @@ test_0046,1,ok,nie_dotyczy
 test_0046,2,ok,nie_dotyczy
 test_0046,3,ok,nie_dotyczy
 test_0046,4,ok,nie_dotyczy
-test_0046,5,iglica,srednie
+test_0046,5,iglica,male
 test_0046,6,ok,nie_dotyczy
 test_0046,7,ok,nie_dotyczy
 test_0046,8,ok,nie_dotyczy
