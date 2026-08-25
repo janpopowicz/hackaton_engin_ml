@@ -17,7 +17,7 @@ dokładnie na granicy przedziałów amplitudy i są nierozstrzygalne.
 Uruchomienie:
 
     python tabpfn_diagnose.py     # wytwarza predictions_tabpfn.csv
-    python submit_hybrid.py       # składa predictions.csv
+    python submit_hybrid.py       # składa predictions_hybrid.csv
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ BASE = Path(__file__).resolve().parent
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--labels-from", default="predictions_tabpfn.csv")
-    ap.add_argument("--out", default="predictions.csv")
+    ap.add_argument("--out", default="predictions_hybrid.csv")
     ap.add_argument("--rank", type=int, default=3)
     args = ap.parse_args()
 

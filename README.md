@@ -120,11 +120,11 @@ pip install -r requirements-tabpfn.txt
 # 1. TabPFN: klasy na teście → predictions_tabpfn.csv
 python tabpfn_diagnose.py
 
-# 2. GLRT: nasilenie na klasach TabPFN → predictions.csv
-python submit_hybrid.py --labels-from predictions_tabpfn.csv --out predictions.csv
+# 2. GLRT: nasilenie na klasach TabPFN → predictions_hybrid.csv
+python submit_hybrid.py --labels-from predictions_tabpfn.csv --out predictions_hybrid.csv
 ```
 
-`final_predictions.csv` to hybryda po ręcznym rozstrzygnięciu konfliktów z kroku powyżej (`labelowanie/`).
+`final_predictions.csv` to `predictions_hybrid.csv`
 
 Ewaluacja LOEO (odtworzenie tabeli):
 
@@ -142,12 +142,13 @@ streamlit run app_tabpfn.py
 
 ```
 final_predictions.csv     ← plik oddania
+predictions_hybrid.csv    ← TabPFN (klasa) + GLRT (nasilenie)
 zasady.md                 ← regulamin i format danych
 wyniki.txt                ← LOEO, CI, uzasadnienie hybrydy
 
 tabpfn_diagnose.py        TabPFN + destylacja drzewa
 physics_diagnose.py       model widmowy (GLRT)
-submit_hybrid.py          składa klasę TabPFN + nasilenie GLRT
+submit_hybrid.py          generuje predictions_hybrid.csv
 glrt_serve.py             API inferencji pod aplikację
 evaluate_loeo.py          porównanie modeli
 analiza.py                fakty empiryczne o generatorze widma
