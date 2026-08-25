@@ -620,6 +620,123 @@ class TabPFNTreeDiagnoser:
         return obj
 
 
+def leave_one_engine_out(
+    labeled: pd.DataFrame,
+    train: pd.DataFrame | None = None,
+    *,
+    device: str | None = None,
+    n_estimators: int | None = None,
+    conf_min: float = CONF_MIN,
+) -> dict[str, dict[str, float]]:
+    """Leave-one-engine-out on a labeled pool concatenated in memory.
+
+    Does not read/write ``val.csv`` / ``final_valid.csv``. Per held-out engine:
+    TabPFN teacher, tree on fold labels only, tree on fold labels + pseudo-train.
+    Templates, teacher and severity cuts never see the held-out engine.
+    """
+    device = device or pick_device()
+    n_estimators = n_estimators or (8 if device == "cuda" else 4)
+    labeled = interpolate_spectrum(labeled.reset_index(drop=True))
+    engines = labeled["engine_id"].to_numpy()
+    y = labeled["label"].to_numpy()
+    s = labeled["severity"].to_numpy()
+    residual = compute_residuals(labeled[FREQ_COLS].to_numpy(float), engines)
+    sig = signature_table(residual)
+    n_cyl = labeled["n_cylinders"].to_numpy()
+    mag_all = severity_magnitude(sig)
+    unique = np.unique(engines)
+    n = len(labeled)
+    names = ("tabpfn", "tree_val", "tree_val_train")
+    pred_y = {k: np.empty(n, dtype=object) for k in names}
+    pred_s = {k: np.empty(n, dtype=object) for k in names}
+
+    print(
+        f"LOEO: {len(unique)} silników, {n} cylindrów  "
+        f"device={device}  n_estimators={n_estimators}"
+    )
+    for i, eid in enumerate(unique, 1):
+        tr = engines != eid
+        te = engines == eid
+        templates = build_templates(residual[tr], y[tr])
+        X_tr = feature_frame(
+            residual[tr],
+            {k: v[tr] for k, v in sig.items()},
+            cosine_to_templates(residual[tr], templates),
+            n_cyl[tr],
+        )
+        X_te = feature_frame(
+            residual[te],
+            {k: v[te] for k, v in sig.items()},
+            cosine_to_templates(residual[te], templates),
+            n_cyl[te],
+        )
+        teacher = make_teacher(device, n_estimators)
+        teacher.fit(X_tr.to_numpy(float), y[tr])
+        y_tab = guard_unknown(teacher.predict(X_te.to_numpy(float)), sig["l2"][te])
+
+        tree_val = DecisionTreeClassifier(
+            max_depth=TREE_DEPTH, min_samples_leaf=4, random_state=0
+        )
+        w_val = np.full(int(tr.sum()), 2.0)
+        tree_val.fit(X_tr.to_numpy(float), y[tr], sample_weight=w_val)
+        y_tree_val = guard_unknown(tree_val.predict(X_te.to_numpy(float)), sig["l2"][te])
+
+        X_parts = [X_tr.to_numpy(float)]
+        y_parts = [y[tr]]
+        w_parts = [w_val]
+        if train is not None and len(train):
+            X_unlab, _res, _sig, _ = prepare_xy(train, templates=templates)
+            proba = teacher.predict_proba(X_unlab.to_numpy(float))
+            pred_unlab = teacher.classes_[proba.argmax(axis=1)]
+            conf = proba.max(axis=1)
+            keep = conf >= conf_min
+            if keep.any():
+                X_parts.append(X_unlab.to_numpy(float)[keep])
+                y_parts.append(pred_unlab[keep])
+                w_parts.append(conf[keep])
+        tree_big = DecisionTreeClassifier(
+            max_depth=TREE_DEPTH, min_samples_leaf=4, random_state=0
+        )
+        tree_big.fit(
+            np.vstack(X_parts),
+            np.concatenate(y_parts),
+            sample_weight=np.concatenate(w_parts),
+        )
+        y_tree_big = guard_unknown(tree_big.predict(X_te.to_numpy(float)), sig["l2"][te])
+
+        thr = fit_severity_thresholds(
+            y[tr], s[tr], {k: v[tr] for k, v in mag_all.items()}
+        )
+        mag_te = {k: v[te] for k, v in mag_all.items()}
+        pred_y["tabpfn"][te] = y_tab
+        pred_y["tree_val"][te] = y_tree_val
+        pred_y["tree_val_train"][te] = y_tree_big
+        pred_s["tabpfn"][te] = apply_severity(y_tab, mag_te, thr)
+        pred_s["tree_val"][te] = apply_severity(y_tree_val, mag_te, thr)
+        pred_s["tree_val_train"][te] = apply_severity(y_tree_big, mag_te, thr)
+        if i % 5 == 0 or i == len(unique):
+            print(f"  {i}/{len(unique)}  held-out={eid}")
+
+    titles = {
+        "tabpfn": "LOEO — TabPFN teacher",
+        "tree_val_train": "LOEO — drzewo ← labeled + pseudo-train",
+        "tree_val": "LOEO — drzewo ← tylko labeled",
+    }
+    results: dict[str, dict[str, float]] = {}
+    for name in ("tabpfn", "tree_val_train", "tree_val"):
+        raw, macro, sev = print_eval(titles[name], y, pred_y[name], s, pred_s[name])
+        results[name] = {"raw": float(raw), "macro_f1": float(macro), "sev_acc": float(sev)}
+        err = pred_y[name] != y
+        if err.any():
+            print(f"  błędy ({int(err.sum())}):")
+            for j in np.where(err)[0]:
+                print(
+                    f"    {labeled.iloc[j]['engine_id']} c{int(labeled.iloc[j]['cylinder'])}  "
+                    f"true={y[j]}  pred={pred_y[name][j]}"
+                )
+    return results
+
+
 def _assert_submit(sub: pd.DataFrame, test: pd.DataFrame) -> None:
     assert len(sub) == len(test)
     assert (sub["engine_id"].to_numpy() == test["engine_id"].to_numpy()).all()
